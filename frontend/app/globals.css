@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #f8fafc; /* Slate-50: A very premium light gray */
+  color: #0f172a; /* Slate-900: Soft black for text */
+}
+
+/* Smooth Scrolling */
+html {
+  scroll-behavior: smooth;
+}
