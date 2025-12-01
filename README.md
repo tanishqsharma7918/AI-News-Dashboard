@@ -1,8 +1,9 @@
 # 🧠 AI Pulse: Intelligent News Aggregator & Dashboard
 
-### 🔗 **Live Demo / Video Demo**
+### 🔗 **Preview**
 
-👉 *Add your link here:* **[https://your-demo-link.com](https://your-demo-link.com)**
+![Demo](./AI-News-Dashboard.gif)
+
 
 ---
 
