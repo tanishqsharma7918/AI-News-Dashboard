@@ -160,6 +160,7 @@ def trigger_fetch(db: Session = Depends(get_db)):
     except Exception as e:
         print("❌ Fetch/Cluster Error:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
+
 # ------------------------------------------------------
 # TEST DB
 # ------------------------------------------------------
