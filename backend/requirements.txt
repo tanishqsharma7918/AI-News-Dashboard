@@ -7,3 +7,4 @@ feedparser
 beautifulsoup4
 python-dotenv
 openai
+numpy
