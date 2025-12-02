@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from fastapi import HTTPException
 
 import models
 import crud
@@ -140,15 +141,15 @@ def toggle_favorite(news_id: int, db: Session = Depends(get_db)):
 # FETCH NEW NEWS + RECLUSTER (MANUAL REFRESH)
 # ------------------------------------------------------
 @app.post("/fetch-news")
-def trigger_fetch():
+def trigger_fetch(db: Session = Depends(get_db)):
     try:
         print("\n⚡ Running News Fetcher...\n")
-        inserted = fetch_and_store_news()
+        inserted = fetcher.fetch_and_store_news(db)
         print(f"📰 Saved {inserted} new articles.")
 
         print("\n🧠 Running Semantic AI Topic Clustering...")
-        topics_created = cluster_news_topics()
-        print(f"📌 Created {topics_created} topics.")
+        topics_created = clustering.run_clustering(db)
+        print(f"📌 Created {topics_created} new topics.")
 
         return {
             "status": "ok",
@@ -159,8 +160,6 @@ def trigger_fetch():
     except Exception as e:
         print("❌ Fetch/Cluster Error:", str(e))
         raise HTTPException(status_code=500, detail=str(e))
-
-
 # ------------------------------------------------------
 # TEST DB
 # ------------------------------------------------------
