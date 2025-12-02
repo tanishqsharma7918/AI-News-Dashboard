@@ -11,9 +11,13 @@ class Topic(Base):
     summary = Column(Text)  # AI Summary of the whole topic
     popularity_score = Column(Float, default=0.0)
     created_at = Column(DateTime, server_default=func.now())
+    
+    # ⭐ REQUIRED for clustering
+    embedding = Column(Text, nullable=True)  # store vector JSON here
 
     # Relationship to articles
     articles = relationship("NewsItem", back_populates="topic")
+
 
 
 class NewsItem(Base):
