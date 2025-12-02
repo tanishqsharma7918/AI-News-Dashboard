@@ -5,31 +5,42 @@ import crud
 from datetime import datetime
 import re
 
-# ------------------------------------------------------
-# 1. AI KEYWORDS FILTER (Strongest possible filtering)
-# ------------------------------------------------------
+# ----------------------------------------------
+# Strong AI Keywords (Primary Filter)
+# ----------------------------------------------
 AI_KEYWORDS = [
     "artificial intelligence", "ai", "machine learning",
-    "deep learning", "neural network", "generative ai",
-    "gen ai", "llm", "large language model",
-    "openai", "chatgpt", "anthropic", "claude",
-    "google deepmind", "nvidia", "meta ai",
-    "ai model", "ai system", "ai startup", "ai tool"
+    "deep learning", "neural", "neural network",
+    "generative ai", "gen ai", "foundation model",
+    "llm", "large language model", "openai", "chatgpt",
+    "anthropic", "claude", "google deepmind",
+    "nvidia", "meta ai", "ai model", "ai system",
+    "ai startup", "ai tool", "transformer", "nlp",
+    "computer vision", "robotics", "autonomous"
 ]
 
 def is_ai_related(text: str) -> bool:
-    """Return True only if text contains AI keywords."""
+    """Check for AI relevance using keyword match."""
     if not text:
         return False
-    
     text = text.lower()
-
     return any(keyword in text for keyword in AI_KEYWORDS)
 
 
-# ------------------------------------------------------
-# 2. FETCH AND STORE NEWS WITH AI-ONLY FILTERING
-# ------------------------------------------------------
+# ----------------------------------------------
+# Clean HTML and Unnecessary Tags
+# ----------------------------------------------
+def clean_html(raw_html):
+    if not raw_html:
+        return ""
+    clean = re.sub(r"<[^>]+>", "", raw_html)
+    clean = clean.replace("&nbsp;", " ").strip()
+    return clean
+
+
+# ----------------------------------------------
+# FETCH AND STORE NEWS (Improved Text Extraction)
+# ----------------------------------------------
 def fetch_and_store_news(db: Session):
     sources = crud.get_active_sources(db)
     new_count = 0
@@ -37,9 +48,8 @@ def fetch_and_store_news(db: Session):
     print(f"🔄 Starting fetch for {len(sources)} sources...")
 
     HEADERS = {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'application/rss+xml, application/xml, application/atom+xml, text/xml, */*',
-        'Connection': 'keep-alive'
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/rss+xml, text/xml, */*"
     }
 
     for source in sources:
@@ -48,48 +58,52 @@ def fetch_and_store_news(db: Session):
         try:
             response = requests.get(source.url, headers=HEADERS, timeout=10)
             if response.status_code != 200:
-                print(f"   ⚠️ Blocked/Error: {source.name} (Status: {response.status_code})")
+                print(f"   ⚠️ Error {source.name}: Status {response.status_code}")
                 continue
 
             feed = feedparser.parse(response.content)
             if not feed.entries:
-                print(f"   ⚠️ Parsed but empty: {source.name}")
+                print(f"   ⚠️ Empty feed: {source.name}")
                 continue
 
-            # Process each entry
-            for entry in feed.entries[:10]:  # fetch up to 10 items per source
-                title = entry.title
-                url = entry.link
+            for entry in feed.entries[:10]:
 
-                summary = "No summary available."
-                if hasattr(entry, 'summary'):
-                    summary = entry.summary
-                elif hasattr(entry, 'description'):
-                    summary = entry.description
+                title = clean_html(getattr(entry, "title", ""))
+                link = getattr(entry, "link", "")
+                summary = clean_html(getattr(entry, "summary", "") or getattr(entry, "description", ""))
 
-                # Clean HTML noise
-                clean_text = re.sub("<[^<]+?>", "", summary + " " + title)
+                # Extract deeper text (description, content)
+                full_text_parts = [title, summary]
 
-                # 🔥 AI FILTERING HERE
-                if not is_ai_related(clean_text):
-                    print(f"   ⏩ Skipped (Not AI): {title[:40]}")
+                # Some feeds have rich content
+                if hasattr(entry, "content"):
+                    for c in entry.content:
+                        full_text_parts.append(clean_html(c.value))
+
+                # Merge all extracted text
+                full_text = " ".join(full_text_parts).strip()
+
+                # Ensure AI relevance
+                if not is_ai_related(full_text):
+                    print(f"   ⏩ Skipped (Not AI): {title[:50]}")
                     continue
 
+                # Save article
                 item = crud.create_news_item(
                     db=db,
                     title=title,
                     summary=summary,
-                    url=url,
+                    url=link,
                     source_id=source.id,
                     published_at=datetime.now()
                 )
 
                 if item:
                     new_count += 1
-                    print(f"   ✅ Saved AI Article: {title[:45]}...")
+                    print(f"   ✅ Saved AI Article: {title[:60]}...")
 
         except Exception as e:
-            print(f"   ❌ Critical Error {source.name}: {e}")
+            print(f"   ❌ Critical Error in {source.name}: {e}")
 
-    print(f"🏁 Fetch complete. Total AI items saved: {new_count}")
+    print(f"🏁 Fetch complete. Total saved AI items: {new_count}")
     return new_count
