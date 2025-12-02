@@ -1,125 +1,170 @@
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+
 import models
 import crud
 import fetcher
 import clustering
 import seed
+
 from database import engine, get_db
-from pydantic import BaseModel
 
 
+# ------------------------------------------------------
+# SCHEMAS
+# ------------------------------------------------------
 class BroadcastRequest(BaseModel):
     news_id: int
     platform: str
 
 
-# 1. Create Tables
+# ------------------------------------------------------
+# INITIAL SETUP
+# ------------------------------------------------------
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI()
+app = FastAPI(title="AI News Dashboard Backend", version="2.0")
 
-# 2. CORS (Frontend Access)
+
+# ------------------------------------------------------
+# CORS (Frontend)
+# ------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],        # allow all domains
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# 3. AUTOMATION: Run on Startup
+# ------------------------------------------------------
+# APP STARTUP BOOTSTRAP
+# ------------------------------------------------------
 @app.on_event("startup")
 def startup_event():
-    # We need a new database session for this background task
     db = next(get_db())
     try:
-        # Check if DB is empty
         existing_sources = db.query(models.Source).first()
+
         if not existing_sources:
-            print("🚀 First run detected! Seeding database...")
-            seed.seed_sources()  # Add the 20 sources
-            fetcher.fetch_and_store_news(db)  # Fetch the first batch of news
+            print("🚀 First Run Detected → Seeding Sources…")
+            seed.seed_sources()
 
-            # --- CRITICAL FIX 1: RUN CLUSTERING ON STARTUP ---
-            clustering.run_clustering(db)  # <<< ADDED THIS
+            print("🌐 Fetching initial AI news…")
+            fetcher.fetch_and_store_news(db)
 
-            print("✅ Initialization & Clustering complete. News ready.")
+            print("🧠 Running Initial Semantic Clustering…")
+            clustering.run_clustering(db)
+
+            print("✅ System Ready!")
         else:
-            print("⚡ Database already initialized.")
+            print("⚡ Backend Ready — DB Already Initialized.")
     finally:
         db.close()
 
 
+# ------------------------------------------------------
+# ROOT CHECK
+# ------------------------------------------------------
 @app.get("/")
 def read_root():
-    return {"status": "System Online", "database": "Connected"}
+    return {"status": "online", "message": "AI News Dashboard Backend Running"}
 
 
+# ------------------------------------------------------
+# GET TOPICS (MAIN ENDPOINT FOR FRONTEND)
+# ------------------------------------------------------
 @app.get("/topics")
-def get_popular_topics(db: Session = Depends(get_db)):
-    topics = db.query(models.Topic).order_by(models.Topic.popularity_score.desc()).limit(20).all()
+def get_topics(db: Session = Depends(get_db)):
+    topics = (
+        db.query(models.Topic)
+        .order_by(models.Topic.popularity_score.desc())
+        .limit(25)
+        .all()
+    )
 
-    response_data = []
-    for t in topics:
-        # Get ALL articles for this topic
-        articles = []
-        for a in t.articles:
-            articles.append({
+    response = []
+    for topic in topics:
+        articles = [
+            {
                 "id": a.id,
                 "title": a.title,
                 "url": a.url,
                 "source_id": a.source_id,
-                "published_at": a.published_at
-            })
+                "published_at": a.published_at,
+            }
+            for a in topic.articles
+        ]
 
-        first_article_url = articles[0]["url"] if articles else "#"
+        first_url = articles[0]["url"] if articles else "#"
 
-        response_data.append({
-            "id": t.id,
-            "title": t.title,
-            "summary": t.summary,
-            "popularity_score": t.popularity_score,
-            "url": first_article_url,
-            "articles": articles  # <--- NEW: Sending the list!
+        response.append({
+            "id": topic.id,
+            "title": topic.title,
+            "summary": topic.summary,
+            "popularity_score": topic.popularity_score,
+            "url": first_url,
+            "articles": articles,
         })
 
-    return response_data
+    return response
 
 
+# ------------------------------------------------------
+# GET RAW NEWS (OPTIONAL)
+# ------------------------------------------------------
 @app.get("/news")
 def read_news(skip: int = 0, limit: int = 50, db: Session = Depends(get_db)):
     return crud.get_news_items(db, skip=skip, limit=limit)
 
 
+# ------------------------------------------------------
+# MARK NEWS AS FAVORITE
+# ------------------------------------------------------
 @app.post("/news/{news_id}/favorite")
 def toggle_favorite(news_id: int, db: Session = Depends(get_db)):
     item = db.query(models.NewsItem).filter(models.NewsItem.id == news_id).first()
-    if item:
-        item.is_favorite = not item.is_favorite
-        db.commit()
-        return {"status": "success", "is_favorite": item.is_favorite}
-    return {"error": "Item not found"}
+    if not item:
+        return {"error": "News item not found"}
+
+    item.is_favorite = not item.is_favorite
+    db.commit()
+
+    return {"status": "success", "is_favorite": item.is_favorite}
 
 
+# ------------------------------------------------------
+# FETCH NEW NEWS + RECLUSTER (MANUAL REFRESH)
+# ------------------------------------------------------
 @app.post("/fetch-news")
 def trigger_fetch(db: Session = Depends(get_db)):
-    count = fetcher.fetch_and_store_news(db)
+    saved_count = fetcher.fetch_and_store_news(db)
 
-    # --- CRITICAL FIX 2: RUN CLUSTERING ON MANUAL REFRESH ---
-    clustering.run_clustering(db)  # <<< ADDED THIS
+    # 💡 Important — Perform clustering AFTER fetching
+    clustering.run_clustering(db)
 
-    return {"status": "success", "new_items_saved": count, "clustering": "completed"}
+    return {
+        "status": "success",
+        "new_items_saved": saved_count,
+        "clustering": "completed"
+    }
 
 
+# ------------------------------------------------------
+# TEST DB
+# ------------------------------------------------------
 @app.post("/test-db")
 def test_db_connection(db: Session = Depends(get_db)):
-    return {"message": "Database is connected!"}
+    return {"message": "Database connection successful!"}
 
 
+# ------------------------------------------------------
+# BROADCAST (DUMMY ENDPOINT)
+# ------------------------------------------------------
 @app.post("/broadcast")
 def broadcast_news(request: BroadcastRequest, db: Session = Depends(get_db)):
-    print(f"📣 BROADCASTING News #{request.news_id} to {request.platform}...")
-    return {"status": "success", "platform": request.platform, "message": "Broadcast Logged"}
+    print(f"📣 Sending News {request.news_id} → Platform: {request.platform}")
+    return {"status": "success", "message": "Broadcast recorded"}
