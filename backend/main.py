@@ -139,9 +139,10 @@ def toggle_favorite(news_id: int, db: Session = Depends(get_db)):
 # ------------------------------------------------------
 # FETCH NEW NEWS + RECLUSTER (MANUAL REFRESH)
 # ------------------------------------------------------
+@app.get("/fetch-news")
 @app.post("/fetch-news")
 def trigger_fetch(db: Session = Depends(get_db)):
-    saved_count = fetcher.fetch_and_store_news(db)
+
 
     # 💡 Important — Perform clustering AFTER fetching
     clustering.run_clustering(db)
