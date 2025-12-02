@@ -1,6 +1,6 @@
 # 🧠 AI Pulse: Intelligent News Aggregator & Dashboard
 ### 🌐 **Live Demo**
-
+https://ai-news-frontend-d1ld.onrender.com
 
 ### 🔗 **Preview**
 
