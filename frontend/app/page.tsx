@@ -29,7 +29,6 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
 
-  // Track open menus for News items AND Topics
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [openTopicMenuId, setOpenTopicMenuId] = useState<number | null>(null);
 
@@ -37,6 +36,45 @@ export default function Dashboard() {
   const stripHtml = (html: string) => {
     if (!html) return "";
     return html.replace(/<[^>]*>?/gm, '');
+  };
+
+  // ----- SHARE HELPERS -----
+  const shareToPlatform = (platform: string, title: string, url: string) => {
+    let shareUrl = "";
+
+    const encodedTitle = encodeURIComponent(title);
+    const encodedUrl = encodeURIComponent(url);
+
+    switch (platform) {
+      case "LinkedIn":
+        shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;
+        break;
+
+      case "WhatsApp":
+        shareUrl = `https://wa.me/?text=${encodedTitle}%20-%20${encodedUrl}`;
+        break;
+
+      case "Email":
+        shareUrl = `mailto:?subject=${encodedTitle}&body=${encodedTitle}%0A${encodedUrl}`;
+        break;
+    }
+
+    window.open(shareUrl, "_blank");
+  };
+
+  const handleShare = (platform: string, item: any, type: "news" | "topic") => {
+    setOpenMenuId(null);
+    setOpenTopicMenuId(null);
+
+    const title = type === "news" ? item.title : item.title;
+    const url = item.url;
+
+    shareToPlatform(platform, title, url);
+  };
+
+  const handleCopyLink = (url: string) => {
+    navigator.clipboard.writeText(url);
+    alert("🔗 Link copied!");
   };
 
   // --- API CALLS ---
@@ -70,31 +108,6 @@ export default function Dashboard() {
     await fetch(`http://localhost:8000/news/${id}/favorite`, { method: "POST" });
   };
 
-  // Generic Broadcast Handler (Works for News AND Topics)
-  const handleBroadcast = async (id: number, platform: string, type: "news" | "topic") => {
-    setOpenMenuId(null);
-    setOpenTopicMenuId(null);
-    try {
-      // In a real app, we would have a separate /broadcast-topic endpoint
-      // For MVP, we reuse the existing endpoint or simulate it
-      const res = await fetch("http://localhost:8000/broadcast", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ news_id: id, platform: platform })
-      });
-      const data = await res.json();
-      if (res.ok) alert(`✅ ${type === "topic" ? "Topic" : "Article"} broadcasted to ${data.platform}`);
-    } catch (err) {
-      alert("❌ Failed to broadcast");
-    }
-  };
-
-  const handleCopyLink = (url: string) => {
-    navigator.clipboard.writeText(url);
-    alert("🔗 Link copied!");
-  };
-
-  // --- INITIAL LOAD ---
   useEffect(() => {
     fetchNews();
     fetchTopics();
@@ -104,11 +117,14 @@ export default function Dashboard() {
     ? news.filter(item => item.is_favorite)
     : news;
 
-  // Handle global click to close menus
   const handleGlobalClick = () => {
     setOpenMenuId(null);
     setOpenTopicMenuId(null);
   };
+
+  // -------------------------------------------------------------------
+  // --------------------------- UI -----------------------------------
+  // -------------------------------------------------------------------
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pb-20" onClick={handleGlobalClick}>
@@ -163,13 +179,12 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* CONTENT AREA */}
       <main className="max-w-6xl mx-auto px-6">
         {loading ? (
           <div className="text-center py-20 text-slate-500">Loading Intelligence...</div>
         ) : (
           <>
-            {/* VIEW 1: POPULAR TOPICS */}
+            {/* -------------------------- POPULAR TOPICS -------------------------- */}
             {activeTab === "popular" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {topics.length === 0 && (
@@ -177,68 +192,63 @@ export default function Dashboard() {
                 )}
                 {topics.map((topic) => (
                   <div key={topic.id} className="bg-white p-6 rounded-xl border border-orange-100 shadow-sm hover:shadow-md transition-all relative overflow-visible">
+
                     <div className="absolute top-0 right-0 p-3 opacity-10 pointer-events-none">
                         <Flame size={100} className="text-orange-500" />
                     </div>
 
-                    {/* Score Badge */}
                     <div className="flex justify-between items-start mb-3 relative z-10">
                       <span className="bg-orange-50 text-orange-700 px-3 py-1 rounded-full text-xs font-bold flex items-center border border-orange-100">
                          <Sparkles size={12} className="mr-1" /> Score: {topic.popularity_score}
                       </span>
                     </div>
 
-                    {/* Clean Title */}
-                    <h2 className="text-xl font-bold text-slate-900 relative z-10 leading-tight hover:text-blue-600 transition-colors">
-  <a href={topic.url} target="_blank" rel="noreferrer">
-    {topic.title}
-  </a>
-</h2>
+                    <h2 className="text-xl font-bold text-slate-900 leading-tight relative z-10 hover:text-blue-600">
+                      <a href={topic.url} target="_blank" rel="noreferrer">{topic.title}</a>
+                    </h2>
 
-                    {/* Cleaned Summary (No HTML) */}
                     <p className="text-slate-600 mt-3 line-clamp-3 text-sm relative z-10">
-                        {stripHtml(topic.summary) || "AI-generated summary of this topic cluster..."}
+                      {stripHtml(topic.summary) || "AI-generated summary of this topic cluster..."}
                     </p>
 
-                    {/* Interactive Action Bar */}
                     <div className="mt-5 pt-4 border-t border-slate-100 flex space-x-4 relative z-10">
-                       <button
-                         onClick={(e) => { e.stopPropagation(); alert(`Opening Cluster View for: ${topic.title}`); }}
-                         className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-                       >
-                         View Cluster
-                       </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); alert(`Opening Cluster View for: ${topic.title}`); }}
+                        className="text-sm font-semibold text-blue-600 hover:text-blue-800 hover:underline"
+                      >
+                        View Cluster
+                      </button>
 
-                       <div className="relative">
-                         <button
-                           onClick={(e) => { e.stopPropagation(); setOpenTopicMenuId(openTopicMenuId === topic.id ? null : topic.id); }}
-                           className="text-sm font-semibold text-slate-500 hover:text-slate-800 transition-colors flex items-center"
-                         >
-                           Share Topic <Share2 size={12} className="ml-1" />
-                         </button>
+                      {/* SHARE MENU */}
+                      <div className="relative">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setOpenTopicMenuId(openTopicMenuId === topic.id ? null : topic.id); }}
+                          className="text-sm font-semibold text-slate-500 hover:text-slate-800 flex items-center"
+                        >
+                          Share Topic <Share2 size={12} className="ml-1" />
+                        </button>
 
-                         {/* Topic Share Menu */}
-                         {openTopicMenuId === topic.id && (
-                            <div className="absolute top-full left-0 mt-2 w-36 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150" onClick={(e) => e.stopPropagation()}>
-                              {["LinkedIn", "WhatsApp", "Email"].map((platform) => (
-                                <button
-                                  key={platform}
-                                  onClick={() => handleBroadcast(topic.id, platform, "topic")}
-                                  className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 text-xs font-medium"
-                                >
-                                  {platform}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                       </div>
+                        {openTopicMenuId === topic.id && (
+                          <div className="absolute top-full left-0 mt-2 w-40 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                            {["LinkedIn", "WhatsApp", "Email"].map((platform) => (
+                              <button
+                                key={platform}
+                                onClick={() => handleShare(platform, topic, "topic")}
+                                className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 text-xs font-medium"
+                              >
+                                {platform}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* VIEW 2: STANDARD NEWS GRID */}
+            {/* -------------------------- NEWS GRID -------------------------- */}
             {activeTab !== "popular" && (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {displayedNews.length === 0 && (
@@ -248,8 +258,10 @@ export default function Dashboard() {
                 )}
 
                 {displayedNews.map((item) => (
-                  <div key={item.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all duration-300 flex flex-col h-full overflow-hidden">
+                  <div key={item.id} className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all duration-300 flex flex-col">
+
                     <div className="p-5 flex flex-col h-full">
+
                       <div className="flex justify-between items-center mb-3">
                         <span className="text-[11px] font-bold text-blue-600 uppercase tracking-wider truncate max-w-[70%]">
                           {item.source_name}
@@ -259,40 +271,42 @@ export default function Dashboard() {
                         </span>
                       </div>
 
-                      <div className="flex-grow">
-                        <h2 className="text-base font-bold text-slate-900 leading-snug mb-2 hover:text-blue-600">
-                          <a href={item.url} target="_blank" rel="noreferrer">
-                            {item.title}
-                          </a>
-                        </h2>
-                        <p className="text-sm text-slate-500 leading-relaxed line-clamp-3">
-                          {stripHtml(item.summary)}
-                        </p>
-                      </div>
+                      <h2 className="text-base font-bold text-slate-900 leading-snug mb-2 hover:text-blue-600">
+                        <a href={item.url} target="_blank" rel="noreferrer">
+                          {item.title}
+                        </a>
+                      </h2>
+
+                      <p className="text-sm text-slate-500 line-clamp-3">
+                        {stripHtml(item.summary)}
+                      </p>
 
                       <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between">
+
                         <div className="flex space-x-1">
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleFavorite(item.id); }}
-                            className={`p-2 rounded-md transition-colors ${
+                            className={`p-2 rounded-md ${
                               item.is_favorite ? "text-yellow-500 bg-yellow-50" : "text-slate-400 hover:bg-slate-50 hover:text-slate-600"
                             }`}
                           >
                             <Star size={18} fill={item.is_favorite ? "currentColor" : "none"} />
                           </button>
+
                           <button
                             onClick={(e) => { e.stopPropagation(); handleCopyLink(item.url); }}
-                            className="p-2 rounded-md text-slate-400 hover:bg-slate-50 hover:text-blue-600 transition-colors"
+                            className="p-2 rounded-md text-slate-400 hover:bg-slate-50 hover:text-blue-600"
                           >
                             <LinkIcon size={18} />
                           </button>
                         </div>
 
+                        {/* SHARE MENU */}
                         {item.is_favorite && (
                           <div className="relative">
                             <button
                               onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === item.id ? null : item.id); }}
-                              className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                              className={`flex items-center space-x-1 px-3 py-1.5 rounded-md text-xs font-medium ${
                                 openMenuId === item.id ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                               }`}
                             >
@@ -301,11 +315,11 @@ export default function Dashboard() {
                             </button>
 
                             {openMenuId === item.id && (
-                              <div className="absolute bottom-full right-0 mb-2 w-32 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                              <div className="absolute bottom-full right-0 mb-2 w-40 bg-white border border-slate-200 rounded-lg shadow-xl z-50 overflow-hidden" onClick={(e) => e.stopPropagation()}>
                                 {["LinkedIn", "WhatsApp", "Email"].map((platform) => (
                                   <button
                                     key={platform}
-                                    onClick={() => handleBroadcast(item.id, platform, "news")}
+                                    onClick={() => handleShare(platform, item, "news")}
                                     className="w-full text-left px-4 py-2 hover:bg-slate-50 text-slate-700 text-xs font-medium"
                                   >
                                     {platform}
@@ -315,15 +329,19 @@ export default function Dashboard() {
                             )}
                           </div>
                         )}
+
                       </div>
+
                     </div>
                   </div>
                 ))}
               </div>
             )}
+
           </>
         )}
       </main>
+
     </div>
   );
 }
