@@ -9,21 +9,31 @@ import re
 # Strong AI Keywords (Primary Filter)
 # ----------------------------------------------
 AI_KEYWORDS = [
-    "artificial intelligence", "ai", "machine learning",
-    "deep learning", "neural", "neural network",
-    "generative ai", "gen ai", "foundation model",
-    "llm", "large language model", "openai", "chatgpt",
-    "anthropic", "claude", "google deepmind",
-    "nvidia", "meta ai", "ai model", "ai system",
-    "ai startup", "ai tool", "transformer", "nlp",
-    "computer vision", "robotics", "autonomous"
+    "artificial intelligence", "ai ", " ai,", " ai.",
+    "machine learning", "deep learning", "neural",
+    "model", "gen ai", "generative ai",
+    "llm", "large language model", "transformer",
+    "openai", "chatgpt", "anthropic", "claude",
+    "nvidia", "deepmind", "meta ai", "google ai",
+    "research", "papers", "ml", "vision model", "speech model",
+]
+
+EXCLUDE_KEYWORDS = [
+    "self-promotion", "who wants to be hired", "who's hiring",
+    "[d] monthly", "reddit", "hiring thread",
+    "job", "salary", "resume", "autmoderator",
+    "community thread", "self promotion", "monthly thread",
 ]
 
 def is_ai_related(text: str) -> bool:
-    """Check for AI relevance using keyword match."""
     if not text:
         return False
+
     text = text.lower()
+
+    if any(x in text for x in EXCLUDE_KEYWORDS):
+        return False  # instantly reject non-AI topics
+
     return any(keyword in text for keyword in AI_KEYWORDS)
 
 
