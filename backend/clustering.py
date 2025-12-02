@@ -1,64 +1,94 @@
 from sqlalchemy.orm import Session
 import models
-from datetime import datetime, timedelta
 import math
+from difflib import SequenceMatcher
+
+# Strong AI keywords for filtering and clustering
+AI_KEYWORDS = {
+    "ai", "artificial intelligence", "machine learning", "ml", "deep learning",
+    "chatgpt", "gpt", "openai", "google ai", "meta ai", "llm",
+    "neural", "transformer", "rag", "nlp", "vision model",
+    "robot", "robotics", "autonomous", "automation"
+}
+
+def title_similarity(a: str, b: str) -> float:
+    """A simple ratio-based similarity for fallback."""
+    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
+
+
+def contains_ai_keyword(text: str) -> bool:
+    text = text.lower()
+    return any(keyword in text for keyword in AI_KEYWORDS)
 
 
 def calculate_popularity(topic, article_count, unique_sources):
-    # BRD Formula:
-    # 0.4(Coverage) + 0.2(Diversity) + 0.2(Velocity) + 0.1(Social) + 0.1(Authority)
-
-    coverage = min(article_count * 10, 100)  # Cap at 100
-    diversity = min(unique_sources * 20, 100)  # 5 sources = 100 score
-    velocity = 50  # Mocked for MVP (assumes steady flow)
-
-    score = (0.4 * coverage) + (0.2 * diversity) + (0.2 * velocity)
-    return round(score, 1)
+    coverage = min(article_count * 10, 100)
+    diversity = min(unique_sources * 20, 100)
+    velocity = 50
+    return round((0.4 * coverage) + (0.2 * diversity) + (0.2 * velocity), 1)
 
 
 def run_clustering(db: Session):
-    print("🧠 Running Topic Clustering...")
+    print("🧠 Running AI Topic Clustering...")
 
-    # 1. Get recent ungrouped news
+    # Fetch ALL unclustered news but only AI-related
     recent_news = db.query(models.NewsItem).filter(
         models.NewsItem.topic_id == None
     ).all()
 
     for article in recent_news:
-        # Simple Clustering Logic:
-        # Check if title matches an existing recent topic by > 60% similarity
-        # (In production, use Embeddings/Vectors here)
+
+        # ❌ Skip NON-AI articles entirely
+        if not contains_ai_keyword(article.title + " " + article.summary):
+            print(f"   ❌ Skipping non-AI article: {article.title[:40]}")
+            continue
 
         found_topic = False
-        existing_topics = db.query(models.Topic).order_by(models.Topic.created_at.desc()).limit(20).all()
+
+        # Look at recent topics only
+        existing_topics = db.query(models.Topic).order_by(
+            models.Topic.created_at.desc()
+        ).limit(25).all()
 
         for topic in existing_topics:
-            # Basic keyword overlap check
+
+            # Skip topics that are not AI-related
+            if not contains_ai_keyword(topic.title + " " + topic.summary):
+                continue
+
+            # Basic keyword intersection
             topic_words = set(topic.title.lower().split())
             article_words = set(article.title.lower().split())
-            overlap = len(topic_words.intersection(article_words))
+            keyword_overlap = len(topic_words.intersection(article_words))
 
-            if overlap >= 2:  # If 2+ major words match, group them
+            # Fallback: Title similarity score
+            sim = title_similarity(article.title, topic.title)
+
+            if keyword_overlap >= 2 or sim >= 0.30:
                 article.topic_id = topic.id
                 found_topic = True
-                print(f"   ↳ Added '{article.title[:20]}...' to Topic: {topic.title}")
 
-                # Update Topic Score
+                print(f"   ↳ Added to Topic: {topic.title}")
+
+                # Update topic popularity score
                 count = len(topic.articles)
-                sources = len(set([a.source_id for a in topic.articles]))
+                sources = len(set(a.source_id for a in topic.articles))
                 topic.popularity_score = calculate_popularity(topic, count, sources)
+
                 break
 
+        # Create NEW Topic
         if not found_topic:
-            # Create NEW Topic
             new_topic = models.Topic(
-                title=article.title,  # Use first article title as topic name
+                title=article.title,
                 summary=article.summary,
-                popularity_score=10.0  # Starting score
+                popularity_score=10.0
             )
             db.add(new_topic)
             db.commit()
+
             article.topic_id = new_topic.id
-            print(f"   ✨ Created New Topic: {new_topic.title}")
+
+            print(f"   ✨ New AI Topic: {new_topic.title}")
 
     db.commit()
