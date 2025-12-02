@@ -12,6 +12,9 @@ import {
   ExternalLink,
 } from "lucide-react";
 
+// --- ENV BASE URL ---
+const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
 // --- INTERFACES ---
 interface NewsItem {
   id: number;
@@ -101,24 +104,24 @@ export default function Dashboard() {
     alert("🔗 Link copied!");
   };
 
-  // --- API CALLS ---
+  // --- API CALLS (UPDATED FOR RENDER) ---
   const fetchNews = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/news");
+      const res = await fetch(`${API_BASE}/news`);
       setNews(await res.json());
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching news:", err);
     }
     setLoading(false);
   };
 
   const fetchTopics = async () => {
     try {
-      const res = await fetch("http://localhost:8000/topics");
+      const res = await fetch(`${API_BASE}/topics`);
       setTopics(await res.json());
     } catch (err) {
-      console.error(err);
+      console.error("Error fetching topics:", err);
     }
   };
 
@@ -128,9 +131,14 @@ export default function Dashboard() {
         item.id === id ? { ...item, is_favorite: !item.is_favorite } : item
       )
     );
-    await fetch(`http://localhost:8000/news/${id}/favorite`, {
-      method: "POST",
-    });
+
+    try {
+      await fetch(`${API_BASE}/news/${id}/favorite`, {
+        method: "POST",
+      });
+    } catch (err) {
+      console.error("Error toggling favorite:", err);
+    }
   };
 
   useEffect(() => {
@@ -213,7 +221,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* CONTENT AREA */}
+      {/* CONTENT */}
       <main className="max-w-6xl mx-auto px-6">
         {loading ? (
           <div className="text-center py-20 text-slate-500">
@@ -314,9 +322,7 @@ export default function Dashboard() {
                           {item.source_name}
                         </span>
                         <span className="text-xs text-slate-400">
-                          {new Date(
-                            item.published_at
-                          ).toLocaleDateString()}
+                          {new Date(item.published_at).toLocaleDateString()}
                         </span>
                       </div>
 
@@ -342,9 +348,7 @@ export default function Dashboard() {
                           >
                             <Star
                               size={18}
-                              fill={
-                                item.is_favorite ? "currentColor" : "none"
-                              }
+                              fill={item.is_favorite ? "currentColor" : "none"}
                             />
                           </button>
 
@@ -460,9 +464,7 @@ export default function Dashboard() {
                         <span>Source #{article.source_id}</span>
                         <span>•</span>
                         <span>
-                          {new Date(
-                            article.published_at
-                          ).toLocaleDateString()}
+                          {new Date(article.published_at).toLocaleDateString()}
                         </span>
                         <span>•</span>
 
