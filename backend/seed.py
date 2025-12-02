@@ -21,7 +21,6 @@ SOURCES = [
     {"name": "Hugging Face Blog", "url": "https://huggingface.co/blog/feed.xml", "type": "rss"},
     {"name": "ArXiv (CS - AI)", "url": "http://export.arxiv.org/rss/cs.AI", "type": "rss"},
     {"name": "DeepMind", "url": "https://deepmind.google/blog/rss.xml", "type": "rss"},
-    {"name": "Machine Learning Mastery", "url": "https://machinelearningmastery.com/feed/", "type": "rss"},
     {"name": "Reddit Machine Learning", "url": "https://www.reddit.com/r/MachineLearning/.rss", "type": "rss"},
     {"name": "Berkeley AI Research", "url": "https://bair.berkeley.edu/blog/feed.xml", "type": "rss"},
     {"name": "Apple Machine Learning", "url": "https://machinelearning.apple.com/rss.xml", "type": "rss"},
