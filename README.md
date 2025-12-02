@@ -4,7 +4,7 @@ https://ai-news-frontend-d1ld.onrender.com
 
 ### 🔗 **Preview**
 
-![Demo](./AI-News-Dashboard.gif)
+![Demo](Ai-News.gif)
 
 
 ---
