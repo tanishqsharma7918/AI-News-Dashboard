@@ -1,94 +1,166 @@
 from sqlalchemy.orm import Session
+from openai import OpenAI
+import numpy as np
 import models
 import math
-from difflib import SequenceMatcher
+from datetime import datetime
 
-# Strong AI keywords for filtering and clustering
+# -------------------------------
+# CONFIG
+# -------------------------------
+client = OpenAI()
+
+EMBED_MODEL = "text-embedding-3-large"
+SIMILARITY_THRESHOLD = 0.78     # strict for semantic relevance
+MAX_RECENT_TOPICS = 30
+
+# Strong AI keywords (to ensure only AI content is clustered)
 AI_KEYWORDS = {
-    "ai", "artificial intelligence", "machine learning", "ml", "deep learning",
-    "chatgpt", "gpt", "openai", "google ai", "meta ai", "llm",
-    "neural", "transformer", "rag", "nlp", "vision model",
-    "robot", "robotics", "autonomous", "automation"
+    "ai", "artificial intelligence", "machine learning", "ml",
+    "deep learning", "neural", "neural network", "robotics",
+    "vision model", "nlp", "transformer", "rag",
+    "llm", "large language model", "chatgpt", "openai",
+    "anthropic", "google ai", "meta ai"
 }
 
-def title_similarity(a: str, b: str) -> float:
-    """A simple ratio-based similarity for fallback."""
-    return SequenceMatcher(None, a.lower(), b.lower()).ratio()
-
+# -------------------------------
+# HELPERS
+# -------------------------------
 
 def contains_ai_keyword(text: str) -> bool:
     text = text.lower()
-    return any(keyword in text for keyword in AI_KEYWORDS)
+    return any(kw in text for kw in AI_KEYWORDS)
+
+
+def embed_text(text: str) -> list:
+    """Generate embedding for any text."""
+    if not text or text.strip() == "":
+        return None
+
+    response = client.embeddings.create(
+        model=EMBED_MODEL,
+        input=text
+    )
+
+    return response.data[0].embedding
+
+
+def cosine_sim(a, b):
+    """Cosine similarity between two vectors."""
+    a = np.array(a)
+    b = np.array(b)
+    return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 
 def calculate_popularity(topic, article_count, unique_sources):
     coverage = min(article_count * 10, 100)
     diversity = min(unique_sources * 20, 100)
-    velocity = 50
+    velocity = 60  # static baseline
     return round((0.4 * coverage) + (0.2 * diversity) + (0.2 * velocity), 1)
 
 
-def run_clustering(db: Session):
-    print("🧠 Running AI Topic Clustering...")
+def generate_topic_title(article_title, article_summary):
+    """Creates clean, readable topic titles."""
+    base = article_title.split(":")[0]
+    if len(base) < 50:
+        return base.strip()
+    return (base[:60] + "...").strip()
 
-    # Fetch ALL unclustered news but only AI-related
-    recent_news = db.query(models.NewsItem).filter(
+
+# -------------------------------
+# MAIN CLUSTERING
+# -------------------------------
+
+def run_clustering(db: Session):
+    print("🧠 Running Semantic AI Topic Clustering...")
+
+    # Fetch unclustered articles
+    new_articles = db.query(models.NewsItem).filter(
         models.NewsItem.topic_id == None
     ).all()
 
-    for article in recent_news:
+    if not new_articles:
+        print("   ✔ No new articles to cluster.")
+        return
 
-        # ❌ Skip NON-AI articles entirely
-        if not contains_ai_keyword(article.title + " " + article.summary):
+    # Preload recent topics (limit to reduce noise)
+    existing_topics = db.query(models.Topic).order_by(
+        models.Topic.created_at.desc()
+    ).limit(MAX_RECENT_TOPICS).all()
+
+    # Ensure all existing topic embeddings are loaded
+    for topic in existing_topics:
+        if not topic.embedding:
+            topic_text = f"{topic.title}. {topic.summary}"
+            topic.embedding = embed_text(topic_text)
+            db.commit()
+
+    for article in new_articles:
+
+        # Combine text for embedding
+        text = f"{article.title}. {article.summary}"
+
+        # Skip non-AI articles
+        if not contains_ai_keyword(text):
             print(f"   ❌ Skipping non-AI article: {article.title[:40]}")
             continue
 
-        found_topic = False
+        # Embed article
+        article_embedding = embed_text(text)
+        if not article_embedding:
+            print(f"   ⚠ Skipping article (no embedding): {article.title}")
+            continue
 
-        # Look at recent topics only
-        existing_topics = db.query(models.Topic).order_by(
-            models.Topic.created_at.desc()
-        ).limit(25).all()
+        best_topic = None
+        best_sim = 0
 
+        # -------------------------------
+        # Find best matching topic
+        # -------------------------------
         for topic in existing_topics:
-
-            # Skip topics that are not AI-related
-            if not contains_ai_keyword(topic.title + " " + topic.summary):
+            if not topic.embedding:
                 continue
 
-            # Basic keyword intersection
-            topic_words = set(topic.title.lower().split())
-            article_words = set(article.title.lower().split())
-            keyword_overlap = len(topic_words.intersection(article_words))
+            sim = cosine_sim(article_embedding, topic.embedding)
 
-            # Fallback: Title similarity score
-            sim = title_similarity(article.title, topic.title)
+            if sim > best_sim and sim >= SIMILARITY_THRESHOLD:
+                best_sim = sim
+                best_topic = topic
 
-            if keyword_overlap >= 2 or sim >= 0.30:
-                article.topic_id = topic.id
-                found_topic = True
+        # -------------------------------
+        # Assign to existing topic
+        # -------------------------------
+        if best_topic:
+            article.topic_id = best_topic.id
 
-                print(f"   ↳ Added to Topic: {topic.title}")
+            print(f"   ↳ Added to Topic: {best_topic.title}   (sim={best_sim:.2f})")
 
-                # Update topic popularity score
-                count = len(topic.articles)
-                sources = len(set(a.source_id for a in topic.articles))
-                topic.popularity_score = calculate_popularity(topic, count, sources)
+            count = len(best_topic.articles)
+            sources = len(set(a.source_id for a in best_topic.articles))
+            best_topic.popularity_score = calculate_popularity(best_topic, count, sources)
 
-                break
-
-        # Create NEW Topic
-        if not found_topic:
-            new_topic = models.Topic(
-                title=article.title,
-                summary=article.summary,
-                popularity_score=10.0
-            )
-            db.add(new_topic)
             db.commit()
+            continue
 
-            article.topic_id = new_topic.id
+        # -------------------------------
+        # Create new topic
+        # -------------------------------
+        new_topic_title = generate_topic_title(article.title, article.summary)
 
-            print(f"   ✨ New AI Topic: {new_topic.title}")
+        new_topic = models.Topic(
+            title=new_topic_title,
+            summary=article.summary,
+            embedding=article_embedding,
+            popularity_score=10.0,
+            created_at=datetime.utcnow()
+        )
+
+        db.add(new_topic)
+        db.commit()
+
+        article.topic_id = new_topic.id
+
+        print(f"   ✨ New AI Topic: {new_topic.title}")
 
     db.commit()
+    print("✔ Semantic clustering completed.")
