@@ -6,90 +6,87 @@ from datetime import datetime
 import re
 
 # ============================================================
-# AI DETECTION — BALANCED & SMART
+# AI DETECTION — SMART TITLE-FOCUSED (MUCH MORE ACCURATE)
 # ============================================================
 
+TITLE_KEYWORDS = [
+    "ai", "a.i",
+    "ml", "machine learning",
+    "deep learning", "neural",
+    "model", "models",
+    "llm", "large language model",
+    "agent", "agents",
+    "nvidia", "gpu", "gpus",
+    "openai", "anthropic", "claude",
+    "google", "deepmind", "meta",
+    "transformer", "diffusion",
+    "embedding", "embeddings",
+    "training", "inference",
+    "benchmark", "research", "study",
+]
+
+# Secondary keywords from summary/content
 AI_KEYWORDS = [
     r"\bai\b",
     r"\bartificial intelligence\b",
     r"\bmachine learning\b",
     r"\bdeep learning\b",
-    r"\bneural\b",
-    r"\bneural network\b",
-    r"\bcomputer vision\b",
     r"\btransformer\b",
+    r"\bneural\b",
+    r"\bllm\b",
     r"\bgenerative\b",
     r"\bgenerative ai\b",
     r"\bgen ai\b",
-    r"\bllm\b",
     r"\bmodel\b",
     r"\bmodels\b",
+    r"\bweights\b",
+    r"\bparameters\b",
     r"\bembedding\b",
-    r"\btoken\b",
-    r"\btraining\b",
-    r"\binference\b",
-    r"\blarge language model\b",
-    # Company/Tech specific
-    r"\bopenai\b",
-    r"\bchatgpt\b",
-    r"\banthropic\b",
-    r"\bclaude\b",
-    r"\bnvidia\b",
-    r"\bmeta\b",
-    r"\balphafold\b",
-    r"\bdeepmind\b",
-    r"\bgoogle ai\b",
-    r"\bmicrosoft ai\b",
 ]
 
 # ============================================================
 # EXCLUSION PATTERNS (balanced)
 # ============================================================
 
+# ❗ These block junk from Reddit (but NOT research)
 EXCLUDE_PATTERNS = [
     r"who('?s)? hiring",
     r"who wants to be hired",
     r"automoderator",
     r"megathread",
     r"monthly thread",
-    r"hiring thread",
     r"self[- ]?promotion",
-    r"\bjob(s)?\b",
-    r"\bresume\b",
-    r"looking for work",
-    r"\bhiring\b",
+    r"hiring",
+    r"job opening",
     r"salary",
     r"consulting",
-    # DO NOT BLOCK "[D]" — research uses it
-    # DO NOT block "reddit" globally — breaks feeds
 ]
 
 def matches_any(patterns, text):
     return any(re.search(p, text, re.IGNORECASE) for p in patterns)
 
 
-def is_ai_related(text: str) -> bool:
-    """Smart filter that allows real AI research but blocks junk."""
-    if not text:
+def is_ai_related(title: str, summary: str) -> bool:
+    """Corrected & balanced — accepts real AI content, blocks junk."""
+    if not title:
         return False
 
-    text = text.lower()
+    title_l = title.lower()
+    summary_l = summary.lower()
 
-    # ❌ Hard block junk / meta / hiring / promotion
-    if matches_any(EXCLUDE_PATTERNS, text):
+    # --- HARD EXCLUSIONS ---
+    if matches_any(EXCLUDE_PATTERNS, title_l + " " + summary_l):
         return False
 
-    # ✔ Allow AI based on context keywords (balanced)
-    if matches_any(AI_KEYWORDS, text):
+    # --- PRIORITY: TITLE MATCH ---
+    if any(k in title_l for k in TITLE_KEYWORDS):
         return True
 
-    # ✔ Catch implied AI content (e.g., embeddings, GPUs, models)
-    context_terms = ["gpu", "tpu", "weights", "parameters", "architecture"]
-    if any(ct in text for ct in context_terms):
+    # --- FALLBACK: SUMMARY KEYWORDS ---
+    if matches_any(AI_KEYWORDS, summary_l):
         return True
 
     return False
-
 
 # ============================================================
 # CLEAN HTML
@@ -102,9 +99,8 @@ def clean_html(raw_html):
     clean = re.sub(r"\s+", " ", clean)
     return clean.strip()
 
-
 # ============================================================
-# MAIN FETCHER
+# MAIN FETCHER LOGIC
 # ============================================================
 
 def fetch_and_store_news(db: Session):
@@ -119,10 +115,11 @@ def fetch_and_store_news(db: Session):
     }
 
     for source in sources:
-        print(f"📡 Source: {source.name}")
+        print(f"\n📡 Source: {source.name}")
 
         try:
-            response = requests.get(source.url, headers=HEADERS, timeout=10)
+            response = requests.get(source.url, headers=HEADERS, timeout=12)
+
             if response.status_code != 200:
                 print(f"⚠️ HTTP {response.status_code}")
                 continue
@@ -130,51 +127,51 @@ def fetch_and_store_news(db: Session):
             feed = feedparser.parse(response.content)
 
             if not feed.entries:
-                print("⚠️ No entries")
+                print("⚠️ No entries returned from feed")
                 continue
 
-            for entry in feed.entries[:20]:  # fetch more entries
+            for entry in feed.entries[:25]:  # Fetch more items
                 title = clean_html(getattr(entry, "title", ""))
                 link = getattr(entry, "link", "")
                 summary = clean_html(
-                    getattr(entry, "summary", "") or 
+                    getattr(entry, "summary", "") or
                     getattr(entry, "description", "")
                 )
 
+                # Include full content if provided
                 parts = [title, summary]
-
-                # include full content if available
                 if hasattr(entry, "content"):
                     for c in entry.content:
                         parts.append(clean_html(c.value))
 
-                full_text = " ".join(parts).lower()
+                full_summary = " ".join(parts)
 
-                # skip if not AI
-                if not is_ai_related(full_text):
-                    print(f"   ⏩ Skip: {title[:60]}")
+                # Filter NON-AI posts
+                if not is_ai_related(title, full_summary):
+                    print(f"   ⏩ Skipped: {title[:70]}")
                     continue
 
-                # skip duplicates
+                # Skip duplicates
                 if crud.news_exists(db, link):
+                    print(f"   ⚪ Duplicate: {title[:70]}")
                     continue
 
-                # SAVE
+                # Store item
                 item = crud.create_news_item(
                     db=db,
                     title=title,
                     summary=summary or title,
                     url=link,
                     source_id=source.id,
-                    published_at=datetime.now()
+                    published_at=datetime.now(),
                 )
 
                 if item:
-                    print(f"   ✅ Saved: {title[:80]}")
                     new_count += 1
+                    print(f"   ✅ Saved: {title[:80]}")
 
         except Exception as e:
             print(f"❌ Error in {source.name}: {e}")
 
-    print(f"\n🏁 Done. Total saved: {new_count}\n")
+    print(f"\n🏁 Done. Saved {new_count} new items.\n")
     return new_count
