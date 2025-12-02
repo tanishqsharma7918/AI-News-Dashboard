@@ -62,17 +62,28 @@ def read_root():
 def get_popular_topics(db: Session = Depends(get_db)):
     topics = db.query(models.Topic).order_by(models.Topic.popularity_score.desc()).limit(20).all()
 
-    # Transform data to include the URL of the first article
     response_data = []
     for t in topics:
-        # Get the first article associated with this topic
-        first_article = t.articles[0] if t.articles else None
+        # Get ALL articles for this topic
+        articles = []
+        for a in t.articles:
+            articles.append({
+                "id": a.id,
+                "title": a.title,
+                "url": a.url,
+                "source_id": a.source_id,
+                "published_at": a.published_at
+            })
+
+        first_article_url = articles[0]["url"] if articles else "#"
+
         response_data.append({
             "id": t.id,
             "title": t.title,
             "summary": t.summary,
             "popularity_score": t.popularity_score,
-            "url": first_article.url if first_article else "#"  # <--- NEW FIELD
+            "url": first_article_url,
+            "articles": articles  # <--- NEW: Sending the list!
         })
 
     return response_data
