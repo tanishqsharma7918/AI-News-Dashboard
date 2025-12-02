@@ -139,19 +139,26 @@ def toggle_favorite(news_id: int, db: Session = Depends(get_db)):
 # ------------------------------------------------------
 # FETCH NEW NEWS + RECLUSTER (MANUAL REFRESH)
 # ------------------------------------------------------
-@app.get("/fetch-news")
 @app.post("/fetch-news")
-def trigger_fetch(db: Session = Depends(get_db)):
+def trigger_fetch():
+    try:
+        print("\n⚡ Running News Fetcher...\n")
+        inserted = fetch_and_store_news()
+        print(f"📰 Saved {inserted} new articles.")
 
+        print("\n🧠 Running Semantic AI Topic Clustering...")
+        topics_created = cluster_news_topics()
+        print(f"📌 Created {topics_created} topics.")
 
-    # 💡 Important — Perform clustering AFTER fetching
-    clustering.run_clustering(db)
+        return {
+            "status": "ok",
+            "new_items_saved": inserted,
+            "topics_created": topics_created
+        }
 
-    return {
-        "status": "success",
-        "new_items_saved": saved_count,
-        "clustering": "completed"
-    }
+    except Exception as e:
+        print("❌ Fetch/Cluster Error:", str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ------------------------------------------------------
