@@ -82,6 +82,7 @@ def read_root():
 def get_topics(db: Session = Depends(get_db)):
     topics = (
         db.query(models.Topic)
+        .options(joinedload(models.Topic.articles))
         .order_by(models.Topic.popularity_score.desc())
         .limit(25)
         .all()
