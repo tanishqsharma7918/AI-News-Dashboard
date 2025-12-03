@@ -163,6 +163,43 @@ def trigger_fetch(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ------------------------------------------------------
+# DIAGNOSE DATABASE STATE
+# ------------------------------------------------------
+@app.get("/diagnose")
+def diagnose_database(db: Session = Depends(get_db)):
+    try:
+        total_topics = db.query(models.Topic).count()
+        total_articles = db.query(models.NewsItem).count()
+        linked_articles = db.query(models.NewsItem).filter(models.NewsItem.topic_id != None).count()
+        unlinked_articles = db.query(models.NewsItem).filter(models.NewsItem.topic_id == None).count()
+        
+        # Get sample topics with article counts
+        topics_sample = db.query(models.Topic).options(joinedload(models.Topic.articles)).limit(5).all()
+        topics_info = [
+            {
+                "id": t.id,
+                "title": t.title[:50],
+                "article_count": len(t.articles),
+                "popularity_score": t.popularity_score
+            }
+            for t in topics_sample
+        ]
+        
+        return {
+            "database_stats": {
+                "total_topics": total_topics,
+                "total_articles": total_articles,
+                "linked_articles": linked_articles,
+                "unlinked_articles": unlinked_articles
+            },
+            "sample_topics": topics_info,
+            "diagnosis": "Check if topics have 0 articles - that's the bug"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ------------------------------------------------------
 # FORCE RE-CLUSTER ALL ARTICLES (FIX DATABASE)
 # ------------------------------------------------------
 @app.post("/reset-clustering")
@@ -180,8 +217,8 @@ def reset_clustering(db: Session = Depends(get_db)):
         db.commit()
         print(f"✔ Deleted {deleted} old topics")
         
-        # Re-run clustering
-        print("\n🧠 Running fresh clustering...")
+        # Re-run clustering (this might take a while due to OpenAI API calls)
+        print("\n🧠 Running fresh clustering (this may take 1-2 minutes)...")
         clustering.run_clustering(db)
         
         # Count results
