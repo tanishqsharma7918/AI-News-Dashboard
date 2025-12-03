@@ -4,6 +4,7 @@ import numpy as np
 import models
 import math
 import re
+import json
 from datetime import datetime
 
 # -------------------------------
@@ -77,6 +78,22 @@ def embed_text(text: str) -> list:
     return response.data[0].embedding
 
 
+def serialize_embedding(embedding):
+    """Convert embedding list to JSON string for database storage."""
+    if embedding is None:
+        return None
+    return json.dumps(embedding)
+
+
+def deserialize_embedding(embedding_str):
+    """Convert JSON string from database back to list."""
+    if not embedding_str:
+        return None
+    if isinstance(embedding_str, str):
+        return json.loads(embedding_str)
+    return embedding_str  # Already a list
+
+
 def cosine_sim(a, b):
     """Cosine similarity between vectors."""
     a = np.array(a)
@@ -134,12 +151,16 @@ def run_clustering(db: Session):
             models.Topic.created_at.desc()
         ).limit(MAX_RECENT_TOPICS).all()
         
-        # Ensure all topic embeddings exist
+        # Ensure all topic embeddings exist and are deserialized
         for topic in existing_topics:
             if not topic.embedding:
                 topic_text = f"{topic.title}. {topic.summary}"
-                topic.embedding = embed_text(topic_text)
+                embedding = embed_text(topic_text)
+                topic.embedding = serialize_embedding(embedding)
                 db.commit()
+            else:
+                # Deserialize for comparison
+                topic._embedding_vector = deserialize_embedding(topic.embedding)
 
         text = f"{article.title}. {article.summary}".strip().lower()
 
@@ -170,7 +191,12 @@ def run_clustering(db: Session):
             if not topic.embedding:
                 continue
 
-            sim = cosine_sim(article_embedding, topic.embedding)
+            # Get deserialized embedding
+            topic_embedding = getattr(topic, '_embedding_vector', None) or deserialize_embedding(topic.embedding)
+            if not topic_embedding:
+                continue
+
+            sim = cosine_sim(article_embedding, topic_embedding)
             max_sim_seen = max(max_sim_seen, sim)
 
             if sim > best_sim and sim >= SIMILARITY_THRESHOLD:
@@ -203,7 +229,7 @@ def run_clustering(db: Session):
         new_topic = models.Topic(
             title=new_title,
             summary=article.summary,
-            embedding=article_embedding,
+            embedding=serialize_embedding(article_embedding),
             popularity_score=10.0,
             created_at=datetime.utcnow()
         )
