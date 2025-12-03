@@ -13,7 +13,7 @@ from datetime import datetime
 client = OpenAI()
 
 EMBED_MODEL = "text-embedding-3-large"
-SIMILARITY_THRESHOLD = 0.86        # stricter for accurate clusters
+SIMILARITY_THRESHOLD = 0.75        # balanced threshold for grouping related articles
 MAX_RECENT_TOPICS = 30
 
 # Strong AI-only detection
