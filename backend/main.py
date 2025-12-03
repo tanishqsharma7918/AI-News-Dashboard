@@ -163,6 +163,45 @@ def trigger_fetch(db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ------------------------------------------------------
+# FORCE RE-CLUSTER ALL ARTICLES (FIX DATABASE)
+# ------------------------------------------------------
+@app.post("/reset-clustering")
+def reset_clustering(db: Session = Depends(get_db)):
+    try:
+        print("\n🔄 Resetting all topic assignments...")
+        
+        # Clear all topic_id assignments
+        db.query(models.NewsItem).update({"topic_id": None})
+        db.commit()
+        print("✔ Cleared all article-topic links")
+        
+        # Delete all existing topics
+        deleted = db.query(models.Topic).delete()
+        db.commit()
+        print(f"✔ Deleted {deleted} old topics")
+        
+        # Re-run clustering
+        print("\n🧠 Running fresh clustering...")
+        clustering.run_clustering(db)
+        
+        # Count results
+        total_topics = db.query(models.Topic).count()
+        linked_articles = db.query(models.NewsItem).filter(models.NewsItem.topic_id != None).count()
+        total_articles = db.query(models.NewsItem).count()
+        
+        return {
+            "status": "success",
+            "message": "Database reset and re-clustered",
+            "topics_created": total_topics,
+            "articles_linked": linked_articles,
+            "total_articles": total_articles
+        }
+    except Exception as e:
+        print(f"❌ Reset Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ------------------------------------------------------
 # TEST DB
 # ------------------------------------------------------
 @app.post("/test-db")
