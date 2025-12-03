@@ -13,8 +13,9 @@ from datetime import datetime
 client = OpenAI()
 
 EMBED_MODEL = "text-embedding-3-large"
-SIMILARITY_THRESHOLD = 0.70        # lower threshold to group more related articles together
+SIMILARITY_THRESHOLD = 0.65        # aggressive threshold to ensure article grouping
 MAX_RECENT_TOPICS = 30
+DEBUG_CLUSTERING = True  # Enable debugging output
 
 # Strong AI-only detection
 AI_KEYWORDS = {
@@ -160,6 +161,7 @@ def run_clustering(db: Session):
 
         best_topic = None
         best_sim = 0
+        max_sim_seen = 0  # Track highest similarity even if below threshold
 
         # ----------------------------------------
         # Match to existing topic if similarity > threshold
@@ -169,6 +171,7 @@ def run_clustering(db: Session):
                 continue
 
             sim = cosine_sim(article_embedding, topic.embedding)
+            max_sim_seen = max(max_sim_seen, sim)
 
             if sim > best_sim and sim >= SIMILARITY_THRESHOLD:
                 best_sim = sim
@@ -212,6 +215,10 @@ def run_clustering(db: Session):
         article.topic_id = new_topic.id
         db.commit()
 
-        print(f"   ✨ New AI Topic Created: {new_title}")
+        # Show why it didn't match (if we saw similar topics)
+        if max_sim_seen > 0:
+            print(f"   ✨ New Topic: {new_title[:60]}... (best_sim={max_sim_seen:.3f}, threshold={SIMILARITY_THRESHOLD})")
+        else:
+            print(f"   ✨ New AI Topic Created: {new_title}")
 
     print("✔ Semantic clustering complete.")
