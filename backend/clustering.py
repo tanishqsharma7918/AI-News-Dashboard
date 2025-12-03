@@ -13,8 +13,8 @@ from datetime import datetime
 client = OpenAI()
 
 EMBED_MODEL = "text-embedding-3-large"
-SIMILARITY_THRESHOLD = 0.65        # aggressive threshold to ensure article grouping
-MAX_RECENT_TOPICS = 30
+SIMILARITY_THRESHOLD = 0.60        # very aggressive threshold to group related articles
+MAX_RECENT_TOPICS = 50  # Increased to check against more existing topics
 DEBUG_CLUSTERING = True  # Enable debugging output
 
 # Strong AI-only detection
@@ -124,22 +124,22 @@ def run_clustering(db: Session):
         print("✔ No new articles to cluster.")
         return
 
-    # Preload recent topics
-    existing_topics = db.query(models.Topic).order_by(
-        models.Topic.created_at.desc()
-    ).limit(MAX_RECENT_TOPICS).all()
-
-    # Ensure all topic embeddings exist
-    for topic in existing_topics:
-        if not topic.embedding:
-            topic_text = f"{topic.title}. {topic.summary}"
-            topic.embedding = embed_text(topic_text)
-            db.commit()
-
     # -------------------------------
     # PROCESS EACH NEW ARTICLE
     # -------------------------------
     for article in new_articles:
+        
+        # IMPORTANT: Reload existing topics for EACH article to include newly created topics
+        existing_topics = db.query(models.Topic).order_by(
+            models.Topic.created_at.desc()
+        ).limit(MAX_RECENT_TOPICS).all()
+        
+        # Ensure all topic embeddings exist
+        for topic in existing_topics:
+            if not topic.embedding:
+                topic_text = f"{topic.title}. {topic.summary}"
+                topic.embedding = embed_text(topic_text)
+                db.commit()
 
         text = f"{article.title}. {article.summary}".strip().lower()
 
