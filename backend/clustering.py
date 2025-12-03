@@ -179,6 +179,8 @@ def run_clustering(db: Session):
         # ----------------------------------------
         if best_topic:
             article.topic_id = best_topic.id
+            db.commit()
+            db.refresh(best_topic)
 
             print(f"   ↳ Added to Topic: {best_topic.title}  (sim={best_sim:.2f})")
 
@@ -205,6 +207,7 @@ def run_clustering(db: Session):
 
         db.add(new_topic)
         db.commit()
+        db.refresh(new_topic)
 
         article.topic_id = new_topic.id
         db.commit()
