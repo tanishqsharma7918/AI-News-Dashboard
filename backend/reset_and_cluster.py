@@ -41,7 +41,14 @@ def main():
         # Re-cluster
         print(f"\n🧠 Running clustering (this may take 1-2 minutes)...")
         print(f"   Using threshold: {clustering.SIMILARITY_THRESHOLD}")
-        clustering.run_clustering(db)
+        print(f"   📝 Note: Long articles will be auto-truncated to fit embedding limits")
+        
+        try:
+            clustering.run_clustering(db)
+        except Exception as cluster_error:
+            print(f"\n❌ Clustering error: {cluster_error}")
+            print(f"   Checking partial results...")
+            # Don't exit, show what was processed
         
         # Final counts
         final_topics = db.query(models.Topic).count()
