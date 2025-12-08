@@ -90,6 +90,9 @@ def get_topics(db: Session = Depends(get_db)):
 
     response = []
     for topic in topics:
+        # Sort articles by published_at to get most recent first
+        sorted_articles = sorted(topic.articles, key=lambda a: a.published_at, reverse=True)
+        
         articles = [
             {
                 "id": a.id,
@@ -98,9 +101,10 @@ def get_topics(db: Session = Depends(get_db)):
                 "source_id": a.source_id,
                 "published_at": a.published_at,
             }
-            for a in topic.articles
+            for a in sorted_articles
         ]
 
+        # Use the most recent article's URL
         first_url = articles[0]["url"] if articles else "#"
 
         response.append({
