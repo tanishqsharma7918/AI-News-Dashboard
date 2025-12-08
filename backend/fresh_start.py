@@ -32,20 +32,26 @@ def main():
         print(f"   Topics: {current_topics}")
         print(f"   Active sources: {active_sources}")
         
-        # Step 2: Delete all topics
-        print(f"\n🗑️  Step 1: Deleting all topics...")
+        # Step 2: Clear topic assignments first (to avoid foreign key errors)
+        print(f"\n🗑️  Step 1: Clearing topic assignments...")
+        db.query(models.NewsItem).update({"topic_id": None})
+        db.commit()
+        print(f"   ✓ Cleared all topic assignments")
+        
+        # Step 3: Delete all topics
+        print(f"\n🗑️  Step 2: Deleting all topics...")
         deleted_topics = db.query(models.Topic).delete()
         db.commit()
         print(f"   ✓ Deleted {deleted_topics} topics")
         
-        # Step 3: Delete all articles
-        print(f"\n🗑️  Step 2: Deleting all articles...")
+        # Step 4: Delete all articles
+        print(f"\n🗑️  Step 3: Deleting all articles...")
         deleted_articles = db.query(models.NewsItem).delete()
         db.commit()
         print(f"   ✓ Deleted {deleted_articles} articles")
         
-        # Step 4: Fetch fresh articles
-        print(f"\n📰 Step 3: Fetching fresh articles from {active_sources} sources...")
+        # Step 5: Fetch fresh articles
+        print(f"\n📰 Step 4: Fetching fresh articles from {active_sources} sources...")
         print(f"   ⏳ This will take 3-5 minutes...")
         print(f"   Fetching from all RSS feeds...\n")
         
@@ -57,14 +63,14 @@ def main():
             new_articles = db.query(models.NewsItem).count()
             print(f"   Articles in database: {new_articles}")
         
-        # Step 5: Run clustering
+        # Step 6: Run clustering
         total_articles = db.query(models.NewsItem).count()
         
         if total_articles == 0:
             print(f"\n❌ No articles fetched. Please check your internet connection and RSS feeds.")
             sys.exit(1)
         
-        print(f"\n🧠 Step 4: Clustering {total_articles} articles...")
+        print(f"\n🧠 Step 5: Clustering {total_articles} articles...")
         print(f"   Threshold: {clustering.SIMILARITY_THRESHOLD}")
         print(f"   Model: {clustering.EMBED_MODEL}")
         print(f"   ⏳ This will take 2-3 minutes...\n")
@@ -74,7 +80,7 @@ def main():
         except Exception as e:
             print(f"\n   ⚠️  Clustering error (continuing): {e}")
         
-        # Step 6: Final statistics
+        # Step 7: Final statistics
         final_articles = db.query(models.NewsItem).count()
         final_topics = db.query(models.Topic).count()
         linked = db.query(models.NewsItem).filter(
