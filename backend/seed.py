@@ -8,7 +8,7 @@ SOURCES = [
     {"name": "OpenAI Blog", "url": "https://openai.com/blog/rss.xml", "type": "rss"},
     {"name": "Google AI Blog", "url": "http://googleaiblog.blogspot.com/atom.xml", "type": "rss"},
     {"name": "DeepMind", "url": "https://deepmind.google/blog/rss.xml", "type": "rss"},
-    {"name": "Meta AI", "url": "https://ai.facebook.com/blog/rss", "type": "rss"},
+    {"name": "Meta AI", "url": "https://ai.meta.com/blog/rss.xml", "type": "rss"},
     {"name": "Microsoft AI", "url": "https://blogs.microsoft.com/ai/feed/", "type": "rss"},
     {"name": "Apple Machine Learning", "url": "https://machinelearning.apple.com/rss.xml", "type": "rss"},
     {"name": "NVIDIA AI Blog", "url": "https://blogs.nvidia.com/feed/", "type": "rss"},
@@ -19,21 +19,21 @@ SOURCES = [
     {"name": "ArXiv (CS - LG)", "url": "http://export.arxiv.org/rss/cs.LG", "type": "rss"},
     {"name": "Berkeley AI Research", "url": "https://bair.berkeley.edu/blog/feed.xml", "type": "rss"},
     {"name": "Stanford AI Lab", "url": "https://ai.stanford.edu/blog/feed.xml", "type": "rss"},
-    {"name": "MIT CSAIL", "url": "https://www.csail.mit.edu/news/rss.xml", "type": "rss"},
+    {"name": "MIT CSAIL", "url": "https://www.csail.mit.edu/rss.xml", "type": "rss"},
     
     # AI News & Media
-    {"name": "MIT Technology Review (AI)", "url": "https://www.technologyreview.com/feed/topic/artificial-intelligence/", "type": "rss"},
+    {"name": "MIT Technology Review (AI)", "url": "https://www.technologyreview.com/topic/artificial-intelligence/feed/", "type": "rss"},
     {"name": "VentureBeat AI", "url": "https://venturebeat.com/category/ai/feed/", "type": "rss"},
-    {"name": "The Verge (AI)", "url": "https://www.theverge.com/rss/artificial-intelligence/index.xml", "type": "rss"},
+    {"name": "The Verge (AI)", "url": "https://www.theverge.com/ai-artificial-intelligence/rss/index.xml", "type": "rss"},
     {"name": "Wired (AI)", "url": "https://www.wired.com/feed/tag/ai/latest/rss", "type": "rss"},
     {"name": "TechCrunch AI", "url": "https://techcrunch.com/category/artificial-intelligence/feed/", "type": "rss"},
     {"name": "The Information AI", "url": "https://www.theinformation.com/articles/ai/feed", "type": "rss"},
     
     # AI Platforms & Tools
     {"name": "Hugging Face Blog", "url": "https://huggingface.co/blog/feed.xml", "type": "rss"},
-    {"name": "Anthropic Blog", "url": "https://www.anthropic.com/news/rss", "type": "rss"},
-    {"name": "Cohere Blog", "url": "https://cohere.com/blog/rss.xml", "type": "rss"},
-    {"name": "Replicate Blog", "url": "https://replicate.com/blog/rss.xml", "type": "rss"},
+    {"name": "Anthropic Blog", "url": "https://www.anthropic.com/blog/rss.xml", "type": "rss"},
+    {"name": "Cohere Blog", "url": "https://cohere.com/blog/feed", "type": "rss"},
+    {"name": "Replicate Blog", "url": "https://replicate.com/blog/feed", "type": "rss"},
     
     # ML Engineering & Tutorials
     {"name": "Towards Data Science", "url": "https://towardsdatascience.com/feed", "type": "rss"},
@@ -57,7 +57,7 @@ SOURCES = [
     {"name": "Azure AI Blog", "url": "https://azure.microsoft.com/en-us/blog/tag/azure-ai/feed/", "type": "rss"},
     
     # Generative AI Focused
-    {"name": "Stability AI Blog", "url": "https://stability.ai/blog/rss", "type": "rss"},
+    {"name": "Stability AI Blog", "url": "https://stability.ai/news/rss", "type": "rss"},
     {"name": "Midjourney Updates", "url": "https://www.midjourney.com/feed", "type": "rss"},
     
     # AI Ethics & Policy
