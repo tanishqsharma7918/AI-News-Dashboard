@@ -285,7 +285,7 @@ export default function Dashboard() {
                 {topics.map((topic, index) => (
                   <div
                     key={topic.id}
-                    className="group relative backdrop-blur-2xl bg-white/30 p-8 rounded-[32px] border border-white/30 shadow-2xl shadow-black/5 hover:shadow-orange-500/20 transition-all duration-700 hover:-translate-y-2"
+                    className="group relative backdrop-blur-2xl bg-white/30 p-8 rounded-[32px] border border-white/30 shadow-2xl shadow-black/5 hover:shadow-orange-500/20 transition-all duration-700 hover:-translate-y-2 overflow-visible"
                     style={{
                       animationDelay: `${index * 100}ms`,
                       animation: "floatIn 0.8s ease-out forwards",
@@ -351,7 +351,7 @@ export default function Dashboard() {
                           </button>
 
                           {openTopicMenuId === topic.id && (
-                            <div className="absolute top-full right-0 mt-3 w-44 backdrop-blur-2xl bg-white/70 border border-white/30 rounded-[20px] shadow-2xl shadow-black/10 overflow-hidden">
+                            <div className="absolute top-full right-0 mt-3 w-44 backdrop-blur-2xl bg-white/70 border border-white/30 rounded-[20px] shadow-2xl shadow-black/10 overflow-hidden z-[100]">
                               {["LinkedIn", "WhatsApp", "Email"].map((platform) => (
                                 <button
                                   key={platform}
@@ -377,7 +377,7 @@ export default function Dashboard() {
                 {displayedNews.map((item, index) => (
                   <div
                     key={item.id}
-                    className="group relative backdrop-blur-2xl bg-white/30 rounded-[28px] border border-white/30 shadow-2xl shadow-black/5 hover:shadow-blue-500/15 transition-all duration-700 hover:-translate-y-2 overflow-hidden"
+                    className="group relative backdrop-blur-2xl bg-white/30 rounded-[28px] border border-white/30 shadow-2xl shadow-black/5 hover:shadow-blue-500/15 transition-all duration-700 hover:-translate-y-2"
                     style={{
                       animationDelay: `${index * 50}ms`,
                       animation: "floatIn 0.7s ease-out forwards",
@@ -453,7 +453,7 @@ export default function Dashboard() {
                             </button>
 
                             {openMenuId === item.id && (
-                              <div className="absolute bottom-full right-0 mb-3 w-40 backdrop-blur-2xl bg-white/70 border border-white/30 rounded-[18px] shadow-2xl shadow-black/10 overflow-hidden">
+                              <div className="absolute bottom-full right-0 mb-3 w-40 backdrop-blur-2xl bg-white/70 border border-white/30 rounded-[18px] shadow-2xl shadow-black/10 overflow-hidden z-[100]">
                                 {["LinkedIn", "WhatsApp", "Email"].map((platform) => (
                                   <button
                                     key={platform}
