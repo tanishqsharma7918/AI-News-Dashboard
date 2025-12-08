@@ -104,17 +104,12 @@ def get_topics(db: Session = Depends(get_db)):
             for a in sorted_articles
         ]
 
-        # Use the most recent article's URL and title
-        if articles:
-            first_url = articles[0]["url"]
-            display_title = articles[0]["title"]  # Use actual article title
-        else:
-            first_url = "#"
-            display_title = topic.title  # Fallback to topic title
+        # Use the most recent article's URL
+        first_url = articles[0]["url"] if articles else "#"
 
         response.append({
             "id": topic.id,
-            "title": display_title,  # Now shows the actual article title
+            "title": topic.title,  # Keep topic title (represents cluster theme)
             "summary": topic.summary,
             "popularity_score": topic.popularity_score,
             "url": first_url,
