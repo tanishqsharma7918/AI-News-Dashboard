@@ -14,7 +14,7 @@ from datetime import datetime
 client = OpenAI()
 
 EMBED_MODEL = "text-embedding-3-large"
-SIMILARITY_THRESHOLD = 0.72        # balanced threshold for quality clusters with good grouping
+SIMILARITY_THRESHOLD = 0.65        # lower threshold for better grouping of diverse articles
 MAX_RECENT_TOPICS = 50  # Increased to check against more existing topics
 DEBUG_CLUSTERING = True  # Enable debugging output
 
