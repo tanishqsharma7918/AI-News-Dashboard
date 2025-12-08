@@ -104,12 +104,14 @@ def get_topics(db: Session = Depends(get_db)):
             for a in sorted_articles
         ]
 
-        # Use the most recent article's URL
+        # Use the most recent article's title AND url for the topic heading
+        # This ensures clicking the heading opens the exact article shown
+        first_title = articles[0]["title"] if articles else topic.title
         first_url = articles[0]["url"] if articles else "#"
 
         response.append({
             "id": topic.id,
-            "title": topic.title,  # Keep topic title (represents cluster theme)
+            "title": first_title,  # Use actual article title (not AI-generated cluster name)
             "summary": topic.summary,
             "popularity_score": topic.popularity_score,
             "url": first_url,
