@@ -351,7 +351,7 @@ export default function Dashboard() {
                           </button>
 
                           {openTopicMenuId === topic.id && (
-                            <div className="absolute top-full right-0 mt-3 w-44 backdrop-blur-2xl bg-white/70 border border-white/30 rounded-[20px] shadow-2xl shadow-black/10 overflow-hidden z-[100]">
+                            <div className="absolute bottom-full right-0 mb-3 w-44 backdrop-blur-2xl bg-white/70 border border-white/30 rounded-[20px] shadow-2xl shadow-black/10 overflow-hidden z-[100]">
                               {["LinkedIn", "WhatsApp", "Email"].map((platform) => (
                                 <button
                                   key={platform}
