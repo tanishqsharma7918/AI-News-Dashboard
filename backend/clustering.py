@@ -68,9 +68,18 @@ def is_meta_or_non_ai_thread(text: str) -> bool:
 # -------------------------------
 
 def embed_text(text: str) -> list:
-    """Generate embedding for text."""
+    """Generate embedding for text. Auto-truncates to fit token limits."""
     if not text or text.strip() == "":
         return None
+    
+    # Truncate to ~6000 tokens max (rough estimate: 1 token ≈ 4 chars)
+    # text-embedding-3-large has 8192 token limit, so 6000 provides buffer
+    MAX_CHARS = 24000  # ~6000 tokens
+    if len(text) > MAX_CHARS:
+        text = text[:MAX_CHARS] + "..."
+        if DEBUG_CLUSTERING:
+            print(f"   ⚠️ Truncated long text ({len(text)} chars → {MAX_CHARS} chars)")
+    
     response = client.embeddings.create(
         model=EMBED_MODEL,
         input=text,
