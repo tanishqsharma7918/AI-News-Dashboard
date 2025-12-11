@@ -5,7 +5,7 @@ https://ai-news-frontend-d1ld.onrender.com
 ### 🔗 **Preview**
 
 <p align="center">
-  <img src="AI%20Dashboard.gif" alt="Demo" width="650">
+  <img src="AI_Dashboard.gif" alt="Demo" width="650">
 </p>
 
 
